@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { AssetConfig, Mode, Position } from '../assets';
-import { useAudio, useVinylAudio } from '../hooks/useAudio';
+import { useAudio } from '../hooks/useAudio';
+import { VinylPlayer } from './VinylPlayer';
+import clsx from 'clsx';
 
 interface FloatingElementProps {
   asset: AssetConfig;
   mode: Mode;
   className?: string;
-  style?: React.CSSProperties;
 }
 
-// Helper to parse position values for Framer Motion
 const getPositionStyles = (pos: Position) => {
   const styles: any = {
     rotate: pos.rotate,
@@ -27,68 +27,83 @@ const getPositionStyles = (pos: Position) => {
   return styles;
 };
 
-const JAZZ_URL = "https://assets.mixkit.co/active_storage/sfx/117/117-preview.m4a";
 const POP_URL = "https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.m4a";
+// Frank Ocean Track
+const FRANK_OCEAN_URL = "https://www.dropbox.com/scl/fi/v72j8sp56b7xh7giovrlo/Frank-Ocean-Nikes.mp3?rlkey=jpeh1f4oq107p21ix0lmlocyk&st=372azrh2&dl=1";
 
-export const FloatingElement: React.FC<FloatingElementProps> = ({ asset, mode, className, style }) => {
-  const targetPos = asset.modes[mode];
+export const FloatingElement: React.FC<FloatingElementProps> = ({ asset, mode, className }) => {
+  const targetPos = asset.modes[mode] || asset.modes.chaos;
   const isVinyl = asset.type === 'vinyl';
   
   const { play: playPop } = useAudio(POP_URL);
-  const { play: playJazz, stop: stopJazz } = useVinylAudio(JAZZ_URL);
-
+  
   const [isHovered, setIsHovered] = useState(false);
 
   const handleMouseEnter = () => {
     setIsHovered(true);
-    playPop();
-    if (isVinyl) playJazz();
+    if (!isVinyl) playPop();
   };
 
   const handleMouseLeave = () => {
     setIsHovered(false);
-    if (isVinyl) stopJazz();
   };
 
+  const currentRotation = targetPos.rotate;
+
+  if (isVinyl) {
+    return (
+      <motion.div
+        layoutId={asset.id}
+        className={clsx("absolute select-none pointer-events-auto", className)}
+        initial={false}
+        animate={{
+          ...getPositionStyles(targetPos),
+          y: 0,
+          x: (targetPos.left === '50%' || targetPos.left === 50) ? '-50%' : 0,
+          rotate: currentRotation, 
+        }}
+        transition={{
+          layout: { duration: 1.2, ease: [0.25, 1, 0.5, 1] },
+          opacity: { duration: 0.8 },
+          rotate: { duration: 1.2, ease: [0.25, 1, 0.5, 1] }
+        }}
+        whileHover={{
+          scale: 1.05,
+          transition: { duration: 0.4, ease: "easeOut" }
+        }}
+      >
+        <VinylPlayer 
+          imageUrl={asset.src} 
+          audioUrl={FRANK_OCEAN_URL} 
+          className="w-[150px] md:w-[220px] h-auto"
+        />
+      </motion.div>
+    );
+  }
+
+  // Standard Render for non-vinyl assets (including keyboard/typewriter)
   return (
     <motion.div
-      layout
-      className={`absolute select-none pointer-events-auto cursor-pointer ${className || ''}`}
-      style={style}
+      layoutId={asset.id}
+      className={clsx(
+        "absolute select-none pointer-events-auto cursor-pointer",
+        className
+      )}
       initial={false}
       animate={{
         ...getPositionStyles(targetPos),
-        
-        // Removed idle floating animation (y loop) as per request
-        y: 0, 
-        
-        // Rotation: If vinyl and hovered, spin 360. Otherwise, stick to layout rotation.
-        // No idle wobble.
-        rotate: isHovered 
-          ? (isVinyl ? 360 : targetPos.rotate)
-          : targetPos.rotate,
-        
+        y: 0,
         x: (targetPos.left === '50%' || targetPos.left === 50) ? '-50%' : 0,
+        rotate: currentRotation,
       }}
       transition={{
-        layout: { duration: 1.2, ease: [0.25, 1, 0.5, 1] }, // Smooth morph
-        top: { duration: 1.2, ease: [0.25, 1, 0.5, 1] },
-        left: { duration: 1.2, ease: [0.25, 1, 0.5, 1] },
-        right: { duration: 1.2, ease: [0.25, 1, 0.5, 1] },
-        bottom: { duration: 1.2, ease: [0.25, 1, 0.5, 1] },
+        layout: { duration: 1.2, ease: [0.25, 1, 0.5, 1] },
         opacity: { duration: 0.8 },
-        scale: { duration: 0.3 }, // Faster scale response on hover
-        
-        // Rotation transition
-        rotate: {
-            duration: isVinyl && isHovered ? 3 : 1.2, // Slow spin for vinyl
-            repeat: isVinyl && isHovered ? Infinity : 0,
-            ease: isVinyl && isHovered ? "linear" : [0.25, 1, 0.5, 1]
-        }
+        rotate: { duration: 1.2, ease: [0.25, 1, 0.5, 1] }
       }}
       whileHover={{
-        scale: targetPos.scale * 1.1,
-        transition: { duration: 0.3 }
+        scale: 1.05, // Increased slightly to be noticeable but subtle
+        transition: { duration: 0.4, ease: "easeOut" }
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -96,7 +111,7 @@ export const FloatingElement: React.FC<FloatingElementProps> = ({ asset, mode, c
       <img 
         src={asset.src} 
         alt={asset.alt} 
-        className="w-auto h-auto max-w-[150px] md:max-w-[200px] object-contain drop-shadow-lg"
+        className="w-[150px] md:w-[220px] h-auto object-contain drop-shadow-2xl transition-all duration-500"
         draggable={false}
       />
     </motion.div>
